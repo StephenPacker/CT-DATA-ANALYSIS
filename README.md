@@ -5,7 +5,7 @@ A suite of tools to extract porosity information from CT scan data. All of the p
 Mimics the action of slicing a sample at any angle. For each slice, the porosity is recorded to an excel sheet, and this procedure can be ran any number of times with the slices being taken from a new random section of the smaple.
 
 ## Simple Porosity Calc
-Calculates the porosity for irregular circular shapes. An example of an irregular cirle shape is: Image 1 (Salt with intergran porosity)
+Calculates the porosity for irregular circular shapes. An example of an irregular cirle shape is: Image 1 (Salt with intergranular porosity) Note the large gap on the upper left corner, these gaps are something I would refer to as irregular and non-solid.
 ![salt_2_17 03_2k_rec0807](https://user-images.githubusercontent.com/35316529/45987469-d9ce3a80-c02e-11e8-9a0f-b95601038fda.jpg)
 
 ## Circular Porosity Calc
