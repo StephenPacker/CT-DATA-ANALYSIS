@@ -1,5 +1,5 @@
 ### CT-DATA-ANALYSIS
-A suite of tools to extract porosity data from CT scan imaging. All of the provided code is designed to work on binary images, the use of non-binary images is at your own risk. The software I used to binarize images was CTAn, a free CT image processing software that can be downloaded at http://bruker-microct.com/products/downloads.htm.
+A suite of tools to extract porosity data from CT scan imaging. All of the provided code is designed to work on binary images, the use of non-binary images is at your own risk. The software I used to binarize images was CTAn, a free CT image processing software that can be downloaded at http://bruker-microct.com/products/downloads.htm. If you use are looking at using this program and work for the U of A contact me at spacker@ualberta.ca and we can discuss possible lisencing (Demo versino does not include the plugins required to binarize images).
 
 ## Circular Random Slice 
 Mimics the action of slicing a sample at any angle. For each slice, the porosity is recorded to an excel sheet. The number of slices generated is up to the user. Each new slice is taken from a random section of the sample as to produce total coverage when numerous slices are taken.
