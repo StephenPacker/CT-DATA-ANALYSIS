@@ -45,9 +45,9 @@ def main():
 			continue
 		break
 
-	width = images[1].shape[0]
-	height = images[1].shape[1]
-	center = (int(width // 2), int(height // 2))
+	height = images[1].shape[0]
+	width = images[1].shape[1]
+	center = (int(height // 2), int(width // 2))
 	radius = radius_finder(images, width, center)
 
 	c_len = rev_finder(images, radius, center)
@@ -129,12 +129,12 @@ def radius_finder(images, width, center):
 	for i in range(0, len(images), int(math.floor(len(images) // 10))):  # Take one measurement each tenth
 		width_index = width
 		cur_i = images[i]
-		cur_p = cur_i[center[1], width - 1]  # Start on the right hand boundary
+		cur_p = cur_i[center[0], width - 1]  # Start on the right hand boundary
 
 		while cur_p == 0 and width_index > 0:  # Continue iterating until we hit our data set, maxes out at left edge
 			width_index -= 1
-			cur_p = cur_i[center[1], width_index]
-		radii.append(width_index - center[0])
+			cur_p = cur_i[center[0], width_index]
+		radii.append(width_index - center[1])
 
 	return max(radii)
 
@@ -142,7 +142,7 @@ def radius_finder(images, width, center):
 # Determines whether a pixel (x,y co-ord) is within the range of a circle delimiting the boundary of our data set.
 def is_in_circle(center, radius, vertices):
 	for i in range(0, len(vertices)):
-		if np.sqrt((vertices[i][0] - center[0]) ** 2 + (vertices[i][1] - center[1]) ** 2) > radius:
+		if np.sqrt((vertices[i][0] - center[1]) ** 2 + (vertices[i][1] - center[0]) ** 2) > radius:
 			return False
 	return True
 
@@ -152,8 +152,8 @@ def is_in_circle(center, radius, vertices):
 # if there are no cubes (within reason) with c_len = rev that fit in the given data set.
 def vertex_generator(center, radius, c_len):
 	# Edges are in reference to the perimeter of the circle delineating the data set boundary
-	left_edge = center[0] - radius
-	right_edge = center[0] + radius
+	left_edge = center[1] - radius
+	right_edge = center[1] + radius
 
 	adders = [[0, 0], [0, c_len], [c_len, 0], [c_len, c_len]]
 
@@ -167,11 +167,12 @@ def vertex_generator(center, radius, c_len):
 		for i in range(4):
 			vertices.append([a + b for a, b in zip(bottom_left_coord, adders[i])])
 		vertices_in_circle = is_in_circle(center, radius, vertices)
-
-	if loop_counter >= 50000:
-		print("This dataset is incomparable with the program, i.e there are no cubes of side length c_len that will fit"
-		      "within the provided image data. PLease try again with a larger and more regular image set if possible. ")
-		exit()
+		if loop_counter >= 50000:
+			print(
+				"This dataset is incompatible with the program, i.e there are no cubes of side length %d that will fit"
+				" in the provided image data. Please try again with a larger and more regular image set if possible. "
+				% c_len)
+			exit()
 
 	return vertices[0]
 
@@ -329,17 +330,17 @@ def rev_finder(images, radius, center):
 
 	line_holder = []
 
-	for j in range(0, 1000):
+	for j in range(0, 100):
 		random_image = random.randrange(0, len(images))
 
 		line = [images[random_image][center[0]][center[1]]]
 		gi = 0  # Growth Incrementer
 
-		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 0.5 or \
-				por_calc(np.count_nonzero(line), len(line)) > total_porosity + 0.5 and gi < center[0] - 1:
+		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 1 or \
+			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 1 and gi < center[1] - 2:
 			gi += 1
-			line.extend([images[random_image][center[0] - gi][center[1] - gi]])
-			line.extend([images[random_image][center[0] + gi][center[1] + gi]])
+			line.extend([images[random_image][center[0]][center[1] - gi]])
+			line.extend([images[random_image][center[0]][center[1] + gi]])
 
 		line_holder.append(len(line))
 
