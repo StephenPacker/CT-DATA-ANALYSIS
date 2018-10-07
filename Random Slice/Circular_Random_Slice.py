@@ -25,7 +25,8 @@ def main():
 	ws = wb_ws_save[1]
 	save_as = wb_ws_save[2]
 
-	angles = (0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165)  # Default angles
+	#angles = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]  # Default angles
+	angles = [i for i in range(1, 180)]
 
 	while True:
 		try:
@@ -206,21 +207,19 @@ def cube_slicer(cube, c_len, vertex, z_position, ws, angles):
 	mid_indices = mid_point / c_len  # Middle of a 1D array of length n i.e an x,y or z array in 3D space
 
 	for i in range(mid_point, mid_point + c_len):
-		slice_plane[i] = cube[mid_indices][i - mid_point][mid_indices]  # Fill middle of plane with cubes values.
+		slice_plane[i] = cube[mid_indices][i - mid_point][mid_indices]  # Fill middle of plane with cubes values
 
 	slopes = slope_generator(angles)
 
-	current_increment = 1  # Since we already filled the middle row.
-
 	for i in range(0, len(slopes)):
-		slice_plane = slice_builder(cube, slice_plane, current_increment, slopes[i], mid_point + c_len, mid_indices)
+		slice_plane = slice_builder(cube, slice_plane, slopes[i], mid_point + c_len, mid_indices)
 		porosities.append(slice_analyzer(slice_plane))
 
 	data_writer(ws, porosities, vertex, z_position, angles)
 
 
 # Iterates through a cube, appending rows/cols to a slice plane in order to simulate angular slicing
-def slice_builder(cube, slice_plane, current_increment, slope, slice_position, mid_indices):
+def slice_builder(cube, slice_plane, slope, slice_position, mid_indices):
 	c_len = len(cube)
 	z_position = mid_indices
 	x_position = mid_indices
@@ -229,14 +228,11 @@ def slice_builder(cube, slice_plane, current_increment, slope, slice_position, m
 	loop_counter = 0
 	decimal_tracker = 0
 
-	# Build the right hand side of the slice plane
-
-	while loop_counter < max_slice:
-		if current_increment < abs(slope):  # CI measures rows appended before moving horizontally
-			z_position += 1
-			current_increment += 1
-		else:
-			if abs(slope) > 0 and slope % 1 == 0:  # Ensures whole #'s get incremented in z
+	# For angles 0 - 45 and 135 - 180
+	if abs(slope) <= 1:
+		# Build the top half of the slice plane
+		while loop_counter < max_slice:
+			if abs(slope) > 0 and slope % 1 == 0:  # Special Case for 45/135 degree angles
 				decimal_tracker += 1
 			else:
 				decimal_tracker += math.modf(abs(slope))[0]
@@ -244,26 +240,20 @@ def slice_builder(cube, slice_plane, current_increment, slope, slice_position, m
 				z_position += 1
 				decimal_tracker -= 1
 			x_position += 1
-			current_increment = 1
-		for i in range(slice_position, slice_position + c_len):
-			slice_plane[i] = cube[z_position][i - slice_position][
-				x_position if slope >= 0 else mid_indices - x_position]  # If slope is negative switch which side we do!
-		slice_position += c_len
-		loop_counter += 1
+			for i in range(slice_position, slice_position + c_len):
+				slice_plane[i] = cube[z_position][i - slice_position][
+					x_position if slope >= 0 else c_len - x_position]  # If slope is negative switch side
+			slice_position += c_len
+			loop_counter += 1
 
-	# Reset the loop position
-	slice_position = (slice_position - (loop_counter + 1) * c_len)
-	z_position = mid_indices
-	x_position = mid_indices
-	loop_counter = 0
+		# Reset the loop position
+		slice_position = (slice_position - (loop_counter + 1) * c_len)
+		z_position = mid_indices
+		x_position = mid_indices
+		loop_counter = 0
 
-	# Build the left hand side of the slice plane
-
-	while loop_counter < max_slice:
-		if current_increment < abs(slope):  # CI measures rows appended before moving horizontally.
-			z_position -= 1
-			current_increment += 1
-		else:
+		# Build the bottom half of the slice plane
+		while loop_counter < max_slice:
 			if abs(slope) > 0 and slope % 1 == 0:  # Ensures whole #'s get incremented in z
 				decimal_tracker += 1
 			else:
@@ -272,12 +262,46 @@ def slice_builder(cube, slice_plane, current_increment, slope, slice_position, m
 				z_position -= 1
 				decimal_tracker -= 1
 			x_position -= 1
-			current_increment = 1
-		for i in range(slice_position - c_len, slice_position):
-			slice_plane[i] = cube[z_position][i - (slice_position - c_len)][
-				x_position if slope >= 0 else mid_indices - x_position]  # If slope is negative switch which side we do!
-		slice_position -= c_len
-		loop_counter += 1
+			for i in range(slice_position - c_len, slice_position):
+				slice_plane[i] = cube[z_position][i - (slice_position - c_len)][
+					x_position if slope >= 0 else c_len - (x_position + 1)]  # If slope is negative switch side
+			slice_position -= c_len
+			loop_counter += 1
+
+	# For angles 46 - 134
+	else:
+		slope = 1/slope
+		# Build the top half of the slice plane
+		while loop_counter < max_slice:
+			decimal_tracker += math.modf(abs(slope))[0]
+			if decimal_tracker >= 1:
+				x_position += 1
+				decimal_tracker -= 1
+			z_position += 1
+			for i in range(slice_position, slice_position + c_len):
+				slice_plane[i] = cube[z_position][i - slice_position][
+					x_position if slope >= 0 else c_len - x_position]  # If slope is negative switch which side we do!
+			slice_position += c_len
+			loop_counter += 1
+
+		# Reset the loop position
+		slice_position = (slice_position - (loop_counter + 1) * c_len)
+		z_position = mid_indices
+		x_position = mid_indices
+		loop_counter = 0
+
+		# Build the bottom half of the slice plane
+		while loop_counter < max_slice:
+			decimal_tracker += math.modf(abs(slope))[0]
+			if decimal_tracker >= 1:
+				x_position -= 1
+				decimal_tracker -= 1
+			z_position -= 1
+			for i in range(slice_position - c_len, slice_position):
+				slice_plane[i] = cube[z_position][i - (slice_position - c_len)][
+					x_position if slope >= 0 else c_len - (x_position + 1)]  # If slope is negative switch which side we do!
+			slice_position -= c_len
+			loop_counter += 1
 
 	return slice_plane
 
@@ -336,8 +360,8 @@ def rev_finder(images, radius, center):
 		line = [images[random_image][center[0]][center[1]]]
 		gi = 0  # Growth Incrementer
 
-		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 1 or \
-			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 1 and gi < center[1] - 4:
+		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 1 and gi < center[1] - 1 or \
+			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 1 and gi < center[1] - 1:
 			gi += 1
 			line.extend([images[random_image][center[0]][center[1] - gi]])
 			line.extend([images[random_image][center[0]][center[1] + gi]])
