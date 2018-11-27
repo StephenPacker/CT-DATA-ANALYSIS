@@ -16,17 +16,14 @@ from openpyxl import load_workbook
 # controls the creation of metadata about the image files (i.e boundaries of data sets, REV of a cube, and dimensions
 # of images) and finally handles the main loop of cube slicing and data processing.
 def main():
-	images_and_file_location = file_reader()
-	images = images_and_file_location[0]
-	file_location = images_and_file_location[1]
 
-	wb_ws_save = excel_handler(file_location)
+	wb_ws_save = excel_handler()
 	wb = wb_ws_save[0]
 	ws = wb_ws_save[1]
 	save_as = wb_ws_save[2]
 
-	#angles = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]  # Default angles
-	angles = [i for i in range(1, 180)]
+	angles = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165]  # Default angles
+	# angles = [i for i in range(1, 180)]
 
 	while True:
 		try:
@@ -45,6 +42,8 @@ def main():
 			print("These are not valid angles")
 			continue
 		break
+
+	images = file_reader()
 
 	height = images[1].shape[0]
 	width = images[1].shape[1]
@@ -79,11 +78,10 @@ def file_reader():
 			continue
 		break
 
-	return images, file_location  # file_location is used for the naming of sheets in a new excel file
+	return images
 
 
-# Loads in a pre existing excel file or creates a new one for writing based on user input
-def excel_handler(file_location):
+def excel_handler():
 	valid_file = False
 
 	while not valid_file:
@@ -107,13 +105,7 @@ def excel_handler(file_location):
 				if chars in [':', '*', '?', '"', '<', '>', '|'] or ord(chars) == 92 or ord(chars) == 47:
 					print("This is not a valid file name, it contains a :,*,?,<,>,|,/ etc. ")
 					valid_file = False
-			title = ""
-			for i in range(len(file_location) - 1, 0, -1):
-				if ord(file_location[i]) == 92:  # A back slash in ascii
-					break
-				title += file_location[i]
 			ws = wb.active
-			ws.title = title[::-1]
 
 		else:
 			print("Sorry, I didn't understand that.")
@@ -213,9 +205,9 @@ def cube_slicer(cube, c_len, vertex, z_position, ws, angles):
 
 	for i in range(0, len(slopes)):
 		slice_plane = slice_builder(cube, slice_plane, slopes[i], mid_point + c_len, mid_indices)
-		porosities.append(slice_analyzer(slice_plane))
+		porosities.append(por_calc(np.count_nonzero(slice_plane), float(len(slice_plane))))
 
-	data_writer(ws, porosities, vertex, z_position, angles)
+	data_writer(ws, porosities, vertex, z_position, angles, cube, c_len)
 
 
 # Iterates through a cube, appending rows/cols to a slice plane in order to simulate angular slicing
@@ -317,25 +309,23 @@ def slope_generator(angles):
 	return slopes
 
 
-# Returns the porosity (non-zero pixels/ zero pixels) of a slice plane
-def slice_analyzer(slice_plane):
-	grain_space = np.count_nonzero(slice_plane)
-	return (1 - (grain_space / float(len(slice_plane)))) * 100
-
-
 # Writes the porosity data to an excel file
-def data_writer(ws, porosities, vertex, z_position, angle, counter=[0]):
+def data_writer(ws, porosities, vertex, z_position, angle, cube, c_len, counter=[0]):
 	counter[0] += 1
 
 	# If its the first time opening the sheet, write the angle information on the top row
 	if counter[0] == 1:
-		ws.cell(row=1, column=1).value = "Angle"
+		ws.cell(row=1, column=1).value = "Angle (x, y, z)"
 		for i in range(1, len(angle) + 1):
 			ws.cell(row=1, column=i + 1).value = angle[i - 1]
+		ws.cell(row=1, column=i + 5).value = "c_len:"
+		ws.cell(row=1, column=i + 6).value = c_len
+		ws.cell(row=1, column=i + 2).value = "cube porosity"
 
 	ws.cell(row=counter[0] + 1, column=1).value = "Slice at (%i,%i,%i)" % (vertex[0], vertex[1], z_position)
 	for i in range(1, len(porosities) + 1):
 		ws.cell(row=counter[0] + 1, column=i + 1).value = porosities[i - 1]
+	ws.cell(row=counter[0] + 1, column=i + 2).value = por_calc(cube_porosity_counter(cube, c_len), c_len**3)
 
 
 # Returns a approximate REV which I will use as the length of my cubes. Based on a line growing algorithm, which is
@@ -354,14 +344,14 @@ def rev_finder(images, radius, center):
 
 	line_holder = []
 
-	for j in range(0, 100):
+	for j in range(0, 1000):
 		random_image = random.randrange(0, len(images))
 
 		line = [images[random_image][center[0]][center[1]]]
 		gi = 0  # Growth Incrementer
 
-		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 1 and gi < center[1] - 1 or \
-			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 1 and gi < center[1] - 1:
+		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 0.5 and gi < center[1] - 1 or \
+			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 0.5 and gi < center[1] - 1:
 			gi += 1
 			line.extend([images[random_image][center[0]][center[1] - gi]])
 			line.extend([images[random_image][center[0]][center[1] + gi]])
@@ -374,6 +364,18 @@ def rev_finder(images, radius, center):
 # Given total bright and dark pixels of an image(s), returns the porosity as a percentage
 def por_calc(bright_pixels, total_pixels):
 	return (1 - (bright_pixels / float(total_pixels))) * 100
+
+
+# A simple function used to count the amount of pore space present in a cube
+def cube_porosity_counter(cube, c_len):
+	count = 0
+
+	for i in range(c_len):
+		for j in range(c_len):
+			for k in range(c_len):
+				count += np.count_nonzero(cube[i][j][k])
+
+	return count
 
 
 main()
