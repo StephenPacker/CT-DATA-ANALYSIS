@@ -11,6 +11,8 @@ import random
 import openpyxl
 from openpyxl import load_workbook
 
+est_por = None
+
 
 # Main delegates the loading of image files (specified by a user), handles loading and/or creation of an excel sheet,
 # controls the creation of metadata about the image files (i.e boundaries of data sets, REV of a cube, and dimensions
@@ -153,7 +155,7 @@ def vertex_generator(center, radius, c_len):
 	vertices_in_circle = False
 	loop_counter = 0
 
-	while not vertices_in_circle and loop_counter < 50000:
+	while not vertices_in_circle:
 		loop_counter += 1
 		vertices = []
 		bottom_left_coord = [random.randrange(left_edge, right_edge), random.randrange(left_edge, right_edge)]
@@ -321,6 +323,8 @@ def data_writer(ws, porosities, vertex, z_position, angle, cube, c_len, counter=
 		ws.cell(row=1, column=i + 5).value = "c_len:"
 		ws.cell(row=1, column=i + 6).value = c_len
 		ws.cell(row=1, column=i + 2).value = "cube porosity"
+		ws.cell(row=2, column=i + 5).value = "total porosity:"
+		ws.cell(row=2, column=i + 6).value = est_por
 
 	ws.cell(row=counter[0] + 1, column=1).value = "Slice at (%i,%i,%i)" % (vertex[0], vertex[1], z_position)
 	for i in range(1, len(porosities) + 1):
@@ -331,6 +335,8 @@ def data_writer(ws, porosities, vertex, z_position, angle, cube, c_len, counter=
 # Returns a approximate REV which I will use as the length of my cubes. Based on a line growing algorithm, which is
 # rooted in the assumption that a 1D REV will translate in a 3D system, which will work for homogeneous samples only.
 def rev_finder(images, radius, center):
+	global est_por
+	
 	total_nonzero_pix = 0
 
 	# Count total porosity for the data set
@@ -339,6 +345,7 @@ def rev_finder(images, radius, center):
 
 	volume = math.pi * (radius ** 2) * i
 	total_porosity = por_calc(total_nonzero_pix, volume)
+	est_por = total_porosity
 
 	# Grow a line until it contains a similar porosity to the total i.e a line of REV
 
@@ -350,8 +357,8 @@ def rev_finder(images, radius, center):
 		line = [images[random_image][center[0]][center[1]]]
 		gi = 0  # Growth Incrementer
 
-		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 0.5 and gi < center[1] - 1 or \
-			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 0.5 and gi < center[1] - 1:
+		while por_calc(np.count_nonzero(line), len(line)) < total_porosity - 1 and gi < center[1] - 1 or \
+			por_calc(np.count_nonzero(line), len(line)) > total_porosity + 1 and gi < center[1] - 1:
 			gi += 1
 			line.extend([images[random_image][center[0]][center[1] - gi]])
 			line.extend([images[random_image][center[0]][center[1] + gi]])
